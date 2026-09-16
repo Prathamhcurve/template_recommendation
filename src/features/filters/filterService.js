@@ -1,14 +1,23 @@
 const apiURL = "https://selfserve.hockeycurve.com/public/hcgallery";
 
 const fetchFilters = async () => {
-  const res = await fetch(`${apiURL}/filters`, {
-    credentials: "include",
-  });
+  try {
+    const res = await fetch(`${apiURL}/filters`, {
+      credentials: "include",
+    });
 
-  if (!res.ok) throw new Error("Network error");
+    if (!res.ok) {
+      throw new Error(`Failed to fetch filters: ${res.status} ${res.statusText}`);
+    }
 
-  const data = await res.json();
-  return data.data;
+    const responseData = await res.json();
+    
+    // Returns { clients: [], industry_tag1: [], keywords: [], marketing_goals: [] }
+    return responseData.data || responseData;
+  } catch (error) {
+    console.error("Error in fetchFilters service:", error);
+    throw error;
+  }
 };
 
 const filterService = {

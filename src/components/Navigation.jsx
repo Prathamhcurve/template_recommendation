@@ -5,6 +5,7 @@ import {
   setSelectedClients,
   setSelectedIndustryTags1,
   setSelectedKeywords,
+  setSelectedMarketingGoals, // 1. Imported new action creator
   resetFilters,
 } from "../features/filters/filterSlice";
 import { setPage } from "../features/ui/uiSlice";
@@ -19,26 +20,31 @@ const Navigation = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const { clients, industry_tag1, keywords } = useSelector(
+  // 2. Extracted marketing_goals from Redux state options
+  const { clients, industry_tag1, keywords, marketing_goals } = useSelector(
     (state) => state.filters.filters
   );
 
+  // 3. Extracted selected marketing_goals from Redux state
   const {
     clients: selectedClients,
     industry_tag1: selectedIndustryTags1,
     keywords: selectedKeywords,
+    marketing_goals: selectedMarketingGoals,
   } = useSelector((state) => state.filters.selected);
 
   const submitFilters = () => {
     if (
-      selectedClients.length > 0 ||
-      selectedIndustryTags1.length > 0 ||
-      selectedKeywords.length > 0
+      (selectedClients && selectedClients.length > 0) ||
+      (selectedIndustryTags1 && selectedIndustryTags1.length > 0) ||
+      (selectedKeywords && selectedKeywords.length > 0) ||
+      (selectedMarketingGoals && selectedMarketingGoals.length > 0) // 4. Included marketing_goals check
     ) {
       const query = {
         clients: selectedClients,
         industryTags1: selectedIndustryTags1,
         keywords: selectedKeywords,
+        marketingGoals: selectedMarketingGoals, // 5. Added to filter payload
       };
 
       const encodedQuery = btoa(JSON.stringify(query));
@@ -87,12 +93,14 @@ const Navigation = () => {
             position="absolute"
           />
 
+          {/* 6. Enabled Marketing Goal MultiSelect */}
           <MultiSelect
+            options={marketing_goals || []}
+            selected={selectedMarketingGoals || []}
+            onSelectionChange={(item) => {
+              dispatch(setSelectedMarketingGoals(item));
+            }}
             placeholder="Marketing Goal"
-            disabled
-            badge="Beta"
-            options={[]}
-            selected={[]}
             position="absolute"
           />
 

@@ -3,20 +3,25 @@ import {
   setSelectedClients,
   setSelectedIndustryTags1,
   setSelectedKeywords,
+  setSelectedMarketingGoals, // 1. Added new action export
 } from "../features/filters/filterSlice";
 import MultiSelect from "./MultiSelect";
 import Button from "./Button";
 
 const FilterModal = ({ isOpen, onClose, onSubmit }) => {
   const dispatch = useDispatch();
-  const { clients, industry_tag1, keywords } = useSelector(
+
+  // 2. Extracted marketing_goals options from Redux state
+  const { clients, industry_tag1, keywords, marketing_goals } = useSelector(
     (state) => state.filters.filters
   );
 
+  // 3. Extracted selected marketing_goals from Redux state
   const {
     clients: selectedClients,
     industry_tag1: selectedIndustryTags1,
     keywords: selectedKeywords,
+    marketing_goals: selectedMarketingGoals,
   } = useSelector((state) => state.filters.selected);
 
   return (
@@ -57,12 +62,14 @@ const FilterModal = ({ isOpen, onClose, onSubmit }) => {
             placeholder="Clients..."
           />
 
+          {/* 4. Removed disabled & badge, added active handlers */}
           <MultiSelect
             placeholder="Marketing Goal"
-            disabled
-            badge="Beta"
-            options={[]}
-            selected={[]}
+            options={marketing_goals || []}
+            selected={selectedMarketingGoals || []}
+            onSelectionChange={(item) => {
+              dispatch(setSelectedMarketingGoals(item));
+            }}
           />
 
           <Button
