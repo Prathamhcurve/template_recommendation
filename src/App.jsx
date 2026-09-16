@@ -1,9 +1,9 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import useRouteLoader from "./hooks/useRouteLoader";
-import Header from "./components/Header";
+import Header from "./components/header";
 import Navigation from "./components/Navigation";
-import Showcase from "./components/Showcase";
+import Showcase from "./components/showcase";
 import Preview from "./pages/Preview";
 import "./App.scss";
 

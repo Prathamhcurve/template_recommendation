@@ -20,7 +20,9 @@ const Showcase = ({ isRecommended = false }) => {
     loading,
   } = useSelector((state) => state.templates);
 
-  const { filtered, total } = numberOfTemps;
+  // Safely fallback to defaults if numberOfTemps structure is missing
+  const filtered = numberOfTemps?.filtered_temps ?? numberOfTemps?.filtered ?? 0;
+  const total = numberOfTemps?.total_temps ?? numberOfTemps?.total ?? 0;
 
   const globalPage = useSelector((state) => state.ui.page);
   const page = isRecommended ? localPage : globalPage;
@@ -35,7 +37,7 @@ const Showcase = ({ isRecommended = false }) => {
 
   if (!data) {
     dispatch(setError("Error loading data!"));
-    return;
+    return null;
   }
 
   const pageSize = 15;
@@ -60,11 +62,11 @@ const Showcase = ({ isRecommended = false }) => {
 
         {enabled ? (
           <h2 className="template-header">
-            Showing filtered results: {filtered} / {total}
+            Showing filtered results: {filtered > 0 ? filtered : totalItems} / {total}
           </h2>
         ) : (
           <h2 className="template-header">
-            {pathname === "/" ? "Unique templates" : "Showing results"}: {total}
+            {pathname === "/" ? "Unique templates" : "Showing results"}: {totalItems > 0 ? totalItems : total}
           </h2>
         )}
 
