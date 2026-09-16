@@ -1,15 +1,19 @@
+"use client";
+
 import { useSelector, useDispatch } from "react-redux";
 import {
   setSelectedClients,
   setSelectedIndustryTags1,
   setSelectedKeywords,
+  setSelectedMarketingGoals,
 } from "../features/filters/filterSlice";
 import MultiSelect from "./MultiSelect";
 import Button from "./Button";
 
 const FilterModal = ({ isOpen, onClose, onSubmit }) => {
   const dispatch = useDispatch();
-  const { clients, industry_tag1, keywords } = useSelector(
+
+  const { clients, industry_tag1, keywords, marketing_goals } = useSelector(
     (state) => state.filters.filters
   );
 
@@ -17,6 +21,7 @@ const FilterModal = ({ isOpen, onClose, onSubmit }) => {
     clients: selectedClients,
     industry_tag1: selectedIndustryTags1,
     keywords: selectedKeywords,
+    marketing_goals: selectedMarketingGoals,
   } = useSelector((state) => state.filters.selected);
 
   return (
@@ -59,10 +64,11 @@ const FilterModal = ({ isOpen, onClose, onSubmit }) => {
 
           <MultiSelect
             placeholder="Marketing Goal"
-            disabled
-            badge="Beta"
-            options={[]}
-            selected={[]}
+            options={marketing_goals || []}
+            selected={selectedMarketingGoals || []}
+            onSelectionChange={(item) => {
+              dispatch(setSelectedMarketingGoals(item));
+            }}
           />
 
           <Button
