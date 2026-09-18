@@ -7,7 +7,8 @@ import {
   setSelectedClients,
   setSelectedIndustryTags1,
   setSelectedKeywords,
-  setSelectedMarketingGoals, // 1. Imported action creator
+  setSelectedPlatforms,
+  setSelectedMarketingGoals,
   resetFilters,
 } from "@/features/filters/filterSlice";
 import { setPage } from "@/features/ui/uiSlice";
@@ -24,7 +25,7 @@ const Navigation = () => {
   const dispatch = useDispatch();
 
   // 2. Extracted marketing_goals from available filter options
-  const { clients, industry_tag1, keywords, marketing_goals } = useSelector(
+  const { clients, industry_tag1, keywords, platforms, marketing_goals } = useSelector(
     (state) => state.filters.filters,
   );
 
@@ -35,6 +36,7 @@ const Navigation = () => {
     clients: selectedClients,
     industry_tag1: selectedIndustryTags1,
     keywords: selectedKeywords,
+    platforms: selectedPlatforms,
     marketing_goals: selectedMarketingGoals,
   } = useSelector((state) => state.filters.selected);
 
@@ -43,13 +45,15 @@ const Navigation = () => {
       (selectedClients && selectedClients.length > 0) ||
       (selectedIndustryTags1 && selectedIndustryTags1.length > 0) ||
       (selectedKeywords && selectedKeywords.length > 0) ||
-      (selectedMarketingGoals && selectedMarketingGoals.length > 0) // 4. Included marketing_goals check
+      (selectedPlatforms && selectedPlatforms.length > 0) // 4. Included marketing_goals check
+    || (selectedMarketingGoals && selectedMarketingGoals.length > 0)
     ) {
       const query = {
         clients: selectedClients,
         industryTags1: selectedIndustryTags1,
         keywords: selectedKeywords,
-        marketingGoals: selectedMarketingGoals, // 5. Added to URL query payload
+        platforms: selectedPlatforms,
+        marketingGoals: selectedMarketingGoals,
       };
 
       const encodedQuery = btoa(JSON.stringify(query));
@@ -102,14 +106,25 @@ const Navigation = () => {
             position="absolute"
           />
 
+          <MultiSelect
+            placeholder="Platforms..."
+            options={platforms || []}
+            selected={selectedPlatforms || []}
+            onSelectionChange={(item) => {
+              dispatch(setSelectedPlatforms(item));
+            }}
+            position="absolute"
+          />
+
           {/* 6. Enabled Marketing Goal MultiSelect */}
           <MultiSelect
-            options={marketing_goals || []}
-            selected={selectedMarketingGoals || []}
+            options={marketing_goals}
+            selected={selectedMarketingGoals}
             onSelectionChange={(item) => {
               dispatch(setSelectedMarketingGoals(item));
             }}
             placeholder="Marketing Goal"
+            badge="Beta"
             position="absolute"
           />
 

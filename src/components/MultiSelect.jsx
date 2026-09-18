@@ -67,15 +67,33 @@ const MultiSelect = ({
     onSelectionChange?.(updated);
   };
 
+  const getOptionLabel = (opt) => {
+    if (opt && typeof opt === "object") {
+      return String(opt.name ?? opt.label ?? opt.id ?? "");
+    }
+    return String(opt ?? "");
+  };
+
+  const getOptionKey = (opt) => {
+    if (opt && typeof opt === "object") {
+      return String(opt.id ?? opt.name ?? opt.label ?? JSON.stringify(opt));
+    }
+    return String(opt);
+  };
+
+  const isSameOption = (a, b) => getOptionKey(a) === getOptionKey(b);
+
   const removeOption = (option) => {
-    const updated = selected.filter((s) => s !== option);
+    const updated = selected.filter((s) => !isSameOption(s, option));
     onSelectionChange?.(updated);
   };
 
-  const availableOptions = options.filter((opt) => !selected.includes(opt));
+  const availableOptions = options.filter(
+    (opt) => !selected.some((s) => isSameOption(s, opt)),
+  );
 
   const filteredOptions = availableOptions.filter((opt) =>
-    opt.toLowerCase().includes(searchTerm.toLowerCase()),
+    getOptionLabel(opt).toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
@@ -93,11 +111,11 @@ const MultiSelect = ({
           )}
           {selected.map((item) => (
             <div
-              key={item}
+              key={getOptionKey(item)}
               className="chip"
               onClick={(e) => e.stopPropagation()}
             >
-              {item}
+              {getOptionLabel(item)}
               <FontAwesomeIcon
                 icon={faXmarkCircle}
                 className="chip-close"
@@ -137,14 +155,14 @@ const MultiSelect = ({
               {filteredOptions.length > 0 ? (
                 filteredOptions.map((opt) => (
                   <div
-                    key={opt}
+                    key={getOptionKey(opt)}
                     className="dropdown-item"
                     onClick={(e) => {
                       addOption(e, opt);
                       setSearchTerm("");
                     }}
                   >
-                    {opt}
+                    {getOptionLabel(opt)}
                   </div>
                 ))
               ) : (

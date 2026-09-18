@@ -21,6 +21,7 @@ const initialState = {
     industry_tag3: [],
     keywords: [],
     marketing_goals: [], // 1. Added available options array
+    platforms: [],
   },
   selected: {
     clients: [],
@@ -29,6 +30,7 @@ const initialState = {
     industry_tag3: [],
     keywords: [],
     marketing_goals: [], // 2. Added selected items array
+    platforms: [],
   },
   searchQuery: null,
   enabled: false,
@@ -58,6 +60,9 @@ const filterSlice = createSlice({
     // 3. Reducer for marketing goals selection
     setSelectedMarketingGoals: (state, action) => {
       state.selected.marketing_goals = action.payload;
+    },
+    setSelectedPlatforms: (state, action) => {
+      state.selected.platforms = action.payload;
     },
     setParams: (state, action) => {
       if (!state.params) state.params = {};
@@ -96,7 +101,11 @@ const filterSlice = createSlice({
         state.filters.industry_tag2 = data.industry_tag2 || [];
         state.filters.industry_tag3 = data.industry_tag3 || [];
         state.filters.keywords = data.keywords || [];
-        state.filters.marketing_goals = data.marketing_goals || []; // 4. Dynamic meta_tags array populated
+        state.filters.marketing_goals = data.marketing_goals || [{
+          id:"awareness",
+          name:"Awareness"
+        }]; // 4. Dynamic meta_tags array populated
+        state.filters.platforms = data.platform || [];
       })
       .addCase(fetchFilters.rejected, (state, action) => {
         state.loading = false;
@@ -112,6 +121,7 @@ export const {
   setSelectedIndustryTags3,
   setSelectedKeywords,
   setSelectedMarketingGoals, // 5. Exported action creator
+  setSelectedPlatforms,
   setParams,
   setCampaignID,
   setSearchQuery,

@@ -37,7 +37,7 @@ a {
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 0 1rem;
 }
@@ -785,7 +785,7 @@ a {
   padding: 0.5rem;
   cursor: pointer;
   border-radius: 0.25rem;
-  text-transform: capitalize;
+  // text-transform: capitalize;
 
   &:hover {
     background: #f3f4f6;
