@@ -6,6 +6,7 @@ import {
   setSelectedIndustryTags1,
   setSelectedKeywords,
   setSelectedPlatforms,
+  setSelectedMarketingGoals, // 1. Added import
 } from "../features/filters/filterSlice";
 import MultiSelect from "./MultiSelect";
 import Button from "./Button";
@@ -13,15 +14,18 @@ import Button from "./Button";
 const FilterModal = ({ isOpen, onClose, onSubmit }) => {
   const dispatch = useDispatch();
 
-  const { clients, industry_tag1, keywords, platforms } = useSelector(
+  // 2. Extract marketing_goals from available options
+  const { clients, industry_tag1, keywords, platforms, marketing_goals } = useSelector(
     (state) => state.filters.filters
   );
 
+  // 3. Extract selected marketing_goals from state
   const {
     clients: selectedClients,
     industry_tag1: selectedIndustryTags1,
     keywords: selectedKeywords,
     platforms: selectedPlatforms,
+    marketing_goals: selectedMarketingGoals,
   } = useSelector((state) => state.filters.selected);
 
   return (
@@ -71,14 +75,15 @@ const FilterModal = ({ isOpen, onClose, onSubmit }) => {
             }}
           />
 
+          {/* 4. Updated Marketing Goal MultiSelect */}
           <MultiSelect
             placeholder="Marketing Goal"
-            options={[]}
-            selected={[]}
+            options={marketing_goals || []}
+            selected={selectedMarketingGoals || []}
             onSelectionChange={(item) => {
-              console.log(item);
+              dispatch(setSelectedMarketingGoals(item));
             }}
-            badge="Beta"
+            // badge="Beta"
           />
 
           <Button

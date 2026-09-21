@@ -22,7 +22,7 @@ export const fetchFilters = async () => {
 };
 
 /**
- * Sends selected filters (including marketingGoals) to the backend
+ * Sends selected filters (including platforms & marketingGoals) to the backend
  */
 export const filterTemplates = async (filterPayload) => {
   try {
@@ -36,6 +36,7 @@ export const filterTemplates = async (filterPayload) => {
         clients: filterPayload.clients || [],
         industryTags1: filterPayload.industryTags1 || [],
         keywords: filterPayload.keywords || [],
+        platforms: filterPayload.platforms || [], // Added platforms support
         marketingGoals: filterPayload.marketingGoals || [],
       }),
     });

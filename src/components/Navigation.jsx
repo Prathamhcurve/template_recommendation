@@ -24,29 +24,26 @@ const Navigation = () => {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  // 2. Extracted marketing_goals from available filter options
   const { clients, industry_tag1, keywords, platforms, marketing_goals } = useSelector(
     (state) => state.filters.filters,
   );
 
   const { loading } = useSelector((state) => state.filters);
 
-  // 3. Extracted selected marketing_goals from state
-  const {
-    clients: selectedClients,
-    industry_tag1: selectedIndustryTags1,
-    keywords: selectedKeywords,
-    platforms: selectedPlatforms,
-    marketing_goals: selectedMarketingGoals,
-  } = useSelector((state) => state.filters.selected);
+  // Read selected items safely with fallbacks
+  const selectedClients = useSelector((state) => state.filters.selected.clients || []);
+  const selectedIndustryTags1 = useSelector((state) => state.filters.selected.industry_tag1 || []);
+  const selectedKeywords = useSelector((state) => state.filters.selected.keywords || []);
+  const selectedPlatforms = useSelector((state) => state.filters.selected.platforms || []);
+  const selectedMarketingGoals = useSelector((state) => state.filters.selected.marketing_goals || []);
 
   const submitFilters = () => {
     if (
-      (selectedClients && selectedClients.length > 0) ||
-      (selectedIndustryTags1 && selectedIndustryTags1.length > 0) ||
-      (selectedKeywords && selectedKeywords.length > 0) ||
-      (selectedPlatforms && selectedPlatforms.length > 0) // 4. Included marketing_goals check
-    || (selectedMarketingGoals && selectedMarketingGoals.length > 0)
+      selectedClients.length > 0 ||
+      selectedIndustryTags1.length > 0 ||
+      selectedKeywords.length > 0 ||
+      selectedPlatforms.length > 0 ||
+      selectedMarketingGoals.length > 0
     ) {
       const query = {
         clients: selectedClients,
@@ -77,54 +74,43 @@ const Navigation = () => {
       <div className="container">
         <div className="nav-content filter-drops">
           <MultiSelect
-            options={keywords}
+            options={keywords || []}
             selected={selectedKeywords}
-            onSelectionChange={(item) => {
-              dispatch(setSelectedKeywords(item));
-            }}
+            onSelectionChange={(item) => dispatch(setSelectedKeywords(item))}
             placeholder="DCOs..."
             position="absolute"
           />
 
           <MultiSelect
-            options={industry_tag1}
+            options={industry_tag1 || []}
             selected={selectedIndustryTags1}
-            onSelectionChange={(item) => {
-              dispatch(setSelectedIndustryTags1(item));
-            }}
+            onSelectionChange={(item) => dispatch(setSelectedIndustryTags1(item))}
             placeholder="Category..."
             position="absolute"
           />
 
           <MultiSelect
-            options={clients}
+            options={clients || []}
             selected={selectedClients}
-            onSelectionChange={(item) => {
-              dispatch(setSelectedClients(item));
-            }}
+            onSelectionChange={(item) => dispatch(setSelectedClients(item))}
             placeholder="Clients..."
             position="absolute"
           />
 
           <MultiSelect
-            placeholder="Platforms..."
             options={platforms || []}
-            selected={selectedPlatforms || []}
-            onSelectionChange={(item) => {
-              dispatch(setSelectedPlatforms(item));
-            }}
+            selected={selectedPlatforms}
+            onSelectionChange={(item) => dispatch(setSelectedPlatforms(item))}
+            placeholder="Platforms..."
             position="absolute"
           />
 
-          {/* 6. Enabled Marketing Goal MultiSelect */}
           <MultiSelect
-            options={marketing_goals}
+            options={marketing_goals || []}
             selected={selectedMarketingGoals}
-            onSelectionChange={(item) => {
-              dispatch(setSelectedMarketingGoals(item));
-            }}
+            onSelectionChange={(item) => dispatch(setSelectedMarketingGoals(item))}
             placeholder="Marketing Goal"
-            badge="Beta"
+            // badge="Beta"
             position="absolute"
           />
 

@@ -1,9 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useParams } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { setError, setPage } from "@/features/ui/uiSlice";
+import {
+  setSelectedClients,
+  setSelectedIndustryTags1,
+  setSelectedKeywords,
+  setSelectedPlatforms,
+  setSelectedMarketingGoals,
+  enableFilters,
+} from "@/features/filters/filterSlice";
 import Card from "./Card";
 import Pagination from "./Pagination";
 import Loader from "./Loader";
@@ -11,6 +19,7 @@ import Loader from "./Loader";
 const Showcase = ({ isRecommended = false }) => {
   const dispatch = useDispatch();
   const pathname = usePathname();
+  const params = useParams();
 
   const [localPage, setLocalPage] = useState(1);
 
@@ -26,6 +35,35 @@ const Showcase = ({ isRecommended = false }) => {
 
   const globalPage = useSelector((state) => state.ui.page);
   const page = isRecommended ? localPage : globalPage;
+
+  // Hydrate Redux state from URL base64 params on refresh/mount
+  useEffect(() => {
+    // 1. Updated from params?.query to params?.filters
+    if (params?.filters) {
+      try {
+        // 2. decodeURIComponent handles URL-encoded %3D%3D padding
+        const cleanBase64 = decodeURIComponent(params.filters);
+        const decodedString = atob(cleanBase64);
+        const parsedQuery = JSON.parse(decodedString);
+
+        console.log("SUCCESSFULLY HYDRATING FROM URL:", parsedQuery);
+
+        if (parsedQuery.clients) dispatch(setSelectedClients(parsedQuery.clients));
+        if (parsedQuery.industryTags1 || parsedQuery.industry_tag1) {
+          dispatch(setSelectedIndustryTags1(parsedQuery.industryTags1 || parsedQuery.industry_tag1));
+        }
+        if (parsedQuery.keywords) dispatch(setSelectedKeywords(parsedQuery.keywords));
+        if (parsedQuery.platforms) dispatch(setSelectedPlatforms(parsedQuery.platforms));
+        if (parsedQuery.marketingGoals || parsedQuery.marketing_goals) {
+          dispatch(setSelectedMarketingGoals(parsedQuery.marketingGoals || parsedQuery.marketing_goals));
+        }
+
+        dispatch(enableFilters(true));
+      } catch (error) {
+        console.error("Error decoding filter query from URL:", error);
+      }
+    }
+  }, [params?.filters, dispatch]);
 
   const handleSetPage = (p) => {
     if (isRecommended) {
@@ -45,11 +83,11 @@ const Showcase = ({ isRecommended = false }) => {
   }
 
   const pageSize = 15;
-  const totalItems = data.length;
+  const totalItems = data ? data.length : 0;
   const startIndex = (page - 1) * pageSize;
   const endIndex = startIndex + pageSize;
 
-  const currentData = data.slice(startIndex, endIndex);
+  const currentData = data ? data.slice(startIndex, endIndex) : [];
 
   return (
     <>

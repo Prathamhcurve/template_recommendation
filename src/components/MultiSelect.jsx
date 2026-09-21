@@ -27,15 +27,12 @@ const MultiSelect = ({
 
   useEffect(() => {
     if (forceClose) {
-      setDropdownOpen(false); // eslint-disable-line react-hooks/set-state-in-effect
+      setDropdownOpen(false);
     }
   }, [forceClose]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      // If the clicked element is no longer connected to the DOM,
-      // it means it was likely an item that was just selected and removed.
-      // In this case, we don't want to close the dropdown.
       if (!e.target.isConnected) return;
 
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -53,7 +50,6 @@ const MultiSelect = ({
     if (disabled) return;
     setDropdownOpen((prev) => !prev);
 
-    // Focus the search box after opening
     setTimeout(() => {
       if (!dropdownOpen && searchInputRef.current) {
         searchInputRef.current.focus();
@@ -67,21 +63,39 @@ const MultiSelect = ({
     onSelectionChange?.(updated);
   };
 
-  const getOptionLabel = (opt) => {
-    if (opt && typeof opt === "object") {
-      return String(opt.name ?? opt.label ?? opt.id ?? "");
+  // Helper to extract identifier key regardless of whether item is a string or object
+  const getRawKey = (item) => {
+    if (!item) return "";
+    if (typeof item === "object") {
+      return String(item.id ?? item.name ?? item.label ?? item.value ?? "");
     }
-    return String(opt ?? "");
+    return String(item);
+  };
+
+  // Resolve item against available options if it was hydrated as a raw string
+  const resolveOption = (item) => {
+    const raw = getRawKey(item);
+    const matched = options.find((opt) => getRawKey(opt) === raw);
+    return matched || item;
+  };
+
+  const getOptionLabel = (opt) => {
+    const resolved = resolveOption(opt);
+    if (resolved && typeof resolved === "object") {
+      return String(resolved.name ?? resolved.label ?? resolved.id ?? "");
+    }
+    return String(resolved ?? "");
   };
 
   const getOptionKey = (opt) => {
-    if (opt && typeof opt === "object") {
-      return String(opt.id ?? opt.name ?? opt.label ?? JSON.stringify(opt));
-    }
-    return String(opt);
+    return getRawKey(opt);
   };
 
-  const isSameOption = (a, b) => getOptionKey(a) === getOptionKey(b);
+  const isSameOption = (a, b) => {
+    const keyA = getRawKey(a);
+    const keyB = getRawKey(b);
+    return keyA !== "" && keyA === keyB;
+  };
 
   const removeOption = (option) => {
     const updated = selected.filter((s) => !isSameOption(s, option));
