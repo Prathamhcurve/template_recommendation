@@ -6,20 +6,70 @@ import {
   setSelectedIndustryTags1,
   setSelectedKeywords,
   setSelectedPlatforms,
-  setSelectedMarketingGoals, // 1. Added import
+  setSelectedMarketingGoals,
 } from "../features/filters/filterSlice";
 import MultiSelect from "./MultiSelect";
 import Button from "./Button";
 
+// Static Platforms dataset with sub-options
+const PLATFORM_OPTIONS_WITH_SUBS = [
+  {
+    id: "Google Ads",
+    name: "Google Ads",
+    subOptions: [
+      "Google Play",
+      "Discover",
+      "Display Network",
+      "Search",
+    ],
+  },
+  {
+    id: "Meta",
+    name: "Meta",
+    subOptions: [
+      "Facebook Feed",
+      "Instagram Stories",
+      "Instagram Reels",
+      "Audience Network",
+    ],
+  },
+  {
+    id: "YouTube",
+    name: "YouTube",
+    subOptions: [
+      "In-Stream Ads",
+      "YouTube Shorts",
+      "Bumper Ads",
+      "Masthead",
+    ],
+  },
+  {
+    id: "PhonePe",
+    name: "PhonePe",
+    subOptions: [
+      "Home Banner",
+      "Rewards Page",
+      "Payment Success Screen",
+    ],
+  },
+  {
+    id: "Paytm",
+    name: "Paytm",
+    subOptions: [
+      "App Homepage Interstitial",
+      "Cashback & Offers Zone",
+      "Post-Payment Screen",
+    ],
+  },
+];
+
 const FilterModal = ({ isOpen, onClose, onSubmit }) => {
   const dispatch = useDispatch();
 
-  // 2. Extract marketing_goals from available options
-  const { clients, industry_tag1, keywords, platforms, marketing_goals } = useSelector(
+  const { clients, industry_tag1, keywords, marketing_goals } = useSelector(
     (state) => state.filters.filters
   );
 
-  // 3. Extract selected marketing_goals from state
   const {
     clients: selectedClients,
     industry_tag1: selectedIndustryTags1,
@@ -40,7 +90,7 @@ const FilterModal = ({ isOpen, onClose, onSubmit }) => {
 
         <div className="sidebar-content">
           <MultiSelect
-            options={keywords}
+            options={keywords || []}
             selected={selectedKeywords}
             onSelectionChange={(item) => {
               dispatch(setSelectedKeywords(item));
@@ -49,7 +99,7 @@ const FilterModal = ({ isOpen, onClose, onSubmit }) => {
           />
 
           <MultiSelect
-            options={industry_tag1}
+            options={industry_tag1 || []}
             selected={selectedIndustryTags1}
             onSelectionChange={(item) => {
               dispatch(setSelectedIndustryTags1(item));
@@ -58,7 +108,7 @@ const FilterModal = ({ isOpen, onClose, onSubmit }) => {
           />
 
           <MultiSelect
-            options={clients}
+            options={clients || []}
             selected={selectedClients}
             onSelectionChange={(item) => {
               dispatch(setSelectedClients(item));
@@ -66,16 +116,16 @@ const FilterModal = ({ isOpen, onClose, onSubmit }) => {
             placeholder="Clients..."
           />
 
+          {/* Platforms MultiSelect loaded with static sub-options */}
           <MultiSelect
             placeholder="Platforms..."
-            options={platforms || []}
+            options={PLATFORM_OPTIONS_WITH_SUBS}
             selected={selectedPlatforms || []}
             onSelectionChange={(item) => {
               dispatch(setSelectedPlatforms(item));
             }}
           />
 
-          {/* 4. Updated Marketing Goal MultiSelect */}
           <MultiSelect
             placeholder="Marketing Goal"
             options={marketing_goals || []}
@@ -83,7 +133,6 @@ const FilterModal = ({ isOpen, onClose, onSubmit }) => {
             onSelectionChange={(item) => {
               dispatch(setSelectedMarketingGoals(item));
             }}
-            // badge="Beta"
           />
 
           <Button

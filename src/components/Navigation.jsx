@@ -24,7 +24,8 @@ const Navigation = () => {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const { clients, industry_tag1, keywords, platforms, marketing_goals } = useSelector(
+  // Pull dynamic platforms along with other filter datasets from Redux state
+  const { clients, industry_tag1, keywords, marketing_goals, platforms } = useSelector(
     (state) => state.filters.filters,
   );
 
@@ -97,6 +98,7 @@ const Navigation = () => {
             position="absolute"
           />
 
+          {/* Platforms MultiSelect now loads dynamic platform objects from Redux */}
           <MultiSelect
             options={platforms || []}
             selected={selectedPlatforms}
@@ -110,7 +112,6 @@ const Navigation = () => {
             selected={selectedMarketingGoals}
             onSelectionChange={(item) => dispatch(setSelectedMarketingGoals(item))}
             placeholder="Marketing Goal"
-            // badge="Beta"
             position="absolute"
           />
 

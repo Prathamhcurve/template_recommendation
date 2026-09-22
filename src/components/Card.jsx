@@ -1,16 +1,85 @@
 "use client";
 
 import Link from "next/link";
+import { useSelector } from "react-redux";
 import { faEye } from "@fortawesome/free-solid-svg-icons";
 import Button from "./Button";
 
 const Card = ({ template }) => {
   const { id, title, desc, thumbnail, meta_tags, videos_images } = template;
 
+  // Get dynamic platform options from Redux to distinguish main platforms from sub-options
+  const reduxPlatforms = useSelector(
+    (state) => state.filters?.filters?.platforms || []
+  );
+
   const imageLink =
     videos_images !== undefined
       ? JSON.parse(videos_images.replace(/'/g, '"'))[1]
       : thumbnail;
+
+  // Robust parser to split main platforms vs true sub-options
+  const parseMetaTags = (rawMeta) => {
+    let mainPlatforms = [];
+    let subOptions = [];
+
+    if (!rawMeta) return { mainPlatforms, subOptions };
+
+    const str = typeof rawMeta === "object" ? JSON.stringify(rawMeta) : String(rawMeta).trim();
+
+    // 1. Handle JSON Object or JSON Array
+    if (str.startsWith("{") || str.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(str);
+        const items = Array.isArray(parsed) ? parsed : [parsed];
+
+        items.forEach((item) => {
+          if (typeof item === "object" && item !== null) {
+            const name = item.name || item.id;
+            if (name) mainPlatforms.push(name);
+            if (Array.isArray(item.subOptions)) {
+              subOptions.push(...item.subOptions);
+            }
+          } else if (typeof item === "string") {
+            mainPlatforms.push(item);
+          }
+        });
+
+        return {
+          mainPlatforms: Array.from(new Set(mainPlatforms)),
+          subOptions: Array.from(new Set(subOptions)),
+        };
+      } catch (e) {
+        // Fallthrough if JSON parse fails
+      }
+    }
+
+    // 2. Handle Plain Comma-Separated Strings (e.g. "YouTube, Meta")
+    // Extract valid main platform names from Redux for comparison
+    const knownMainNames = new Set(
+      reduxPlatforms.map((p) =>
+        (typeof p === "object" ? p.name || p.id : String(p)).toLowerCase()
+      )
+    );
+
+    const tags = str.split(",").map((t) => t.trim()).filter(Boolean);
+
+    tags.forEach((tag) => {
+      // If tag matches a known platform name or no known platforms are loaded yet, put in main row
+      if (knownMainNames.size === 0 || knownMainNames.has(tag.toLowerCase())) {
+        mainPlatforms.push(tag);
+      } else {
+        subOptions.push(tag);
+      }
+    });
+
+    return {
+      mainPlatforms: Array.from(new Set(mainPlatforms)),
+      subOptions: Array.from(new Set(subOptions)),
+    };
+  };
+
+  const { mainPlatforms, subOptions } = parseMetaTags(meta_tags);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -19,7 +88,7 @@ const Card = ({ template }) => {
     "description": desc,
     "image": imageLink,
     "identifier": id,
-    "keywords": meta_tags,
+    "keywords": mainPlatforms.join(", ") || meta_tags,
   };
 
   return (
@@ -45,16 +114,42 @@ const Card = ({ template }) => {
       </div>
 
       <div className="card-content">
-        {meta_tags !== "" ? (
-          <div className="tags">
-            {meta_tags?.split(",").map((tag) => (
-              <span key={tag} className="tag">
-                {tag}
-              </span>
-            ))}
+        {(mainPlatforms.length > 0 || subOptions.length > 0) && (
+          <div
+            className="tags-wrapper"
+            style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "12px" }}
+          >
+            {/* Row 1: All Main Dropdown Platforms (e.g. YouTube, Meta side by side) */}
+            {mainPlatforms.length > 0 && (
+              <div className="tags main-tags" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {mainPlatforms.map((platform, idx) => (
+                  <span
+                    key={`${platform}-${idx}`}
+                    className="tag main-tag"
+                    style={{
+                      backgroundColor: "#eff6ff",
+                      color: "#1d4ed8",
+                      borderColor: "#bfdbfe",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {platform}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Row 2: Sub-options Tags (e.g. In-Stream Ads, Reels) */}
+            {subOptions.length > 0 && (
+              <div className="tags sub-tags" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {subOptions.map((subTag, idx) => (
+                  <span key={`${subTag}-${idx}`} className="tag sub-tag">
+                    {subTag}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-        ) : (
-          ""
         )}
 
         <Link href={`/template/${id}`}>

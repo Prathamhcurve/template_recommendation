@@ -105,17 +105,14 @@ const filterSlice = createSlice({
         state.filters.industry_tag3 = data.industry_tag3 || [];
         state.filters.keywords = data.keywords || [];
 
-        // Normalize marketing_goals to string array (matching clients)
+        // Normalize marketing_goals to string array
         const rawGoals = data.marketing_goals || [];
         state.filters.marketing_goals = rawGoals.map((item) =>
           typeof item === "object" ? item.name || item.id || item.label : item
         );
 
-        // Normalize platforms to string array (matching clients)
-        const rawPlatforms = data.platforms || data.platform || [];
-        state.filters.platforms = rawPlatforms.map((item) =>
-          typeof item === "object" ? item.name || item.id || item.label : item
-        );
+        // ✅ PRESERVE platform objects directly so subOptions are available in MultiSelect
+        state.filters.platforms = data.platforms || data.platform || [];
       })
       .addCase(fetchFilters.rejected, (state, action) => {
         state.loading = false;
