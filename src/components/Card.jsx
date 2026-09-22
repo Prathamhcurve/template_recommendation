@@ -8,29 +8,57 @@ import Button from "./Button";
 const Card = ({ template }) => {
   const { id, title, desc, thumbnail, meta_tags, videos_images } = template;
 
-  // Get dynamic platform options from Redux to distinguish main platforms from sub-options
+  // 1. Fetch available platforms
   const reduxPlatforms = useSelector(
     (state) => state.filters?.filters?.platforms || []
   );
+
+  // 2. Fetch all applied filter states from Redux
+  const filtersApplied = useSelector((state) => state.filters?.applied) || {};
+  const filtersSelected = useSelector((state) => state.filters?.selected) || {};
+
+  // Extract all active filter values across potential state slices (platforms, subOptions, campaignTypes, etc.)
+  const flattenAllFilters = (...sources) => {
+    const set = new Set();
+    const extract = (item) => {
+      if (!item) return;
+      if (typeof item === "string" || typeof item === "number") {
+        set.add(String(item).trim().toLowerCase());
+      } else if (Array.isArray(item)) {
+        item.forEach(extract);
+      } else if (typeof item === "object") {
+        Object.values(item).forEach((val) => {
+          if (typeof val === "string" || typeof val === "number") {
+            set.add(String(val).trim().toLowerCase());
+          } else if (Array.isArray(val) || typeof val === "object") {
+            extract(val);
+          }
+        });
+      }
+    };
+    sources.forEach(extract);
+    return set;
+  };
+
+  const activeFilterSet = flattenAllFilters(filtersApplied, filtersSelected);
 
   const imageLink =
     videos_images !== undefined
       ? JSON.parse(videos_images.replace(/'/g, '"'))[1]
       : thumbnail;
 
-  // Robust parser to split main platforms vs true sub-options
+  // 3. Parser: Parse meta_tags and build precise platform-to-subOption mappings
   const parseMetaTags = (rawMeta) => {
     let mainPlatforms = [];
     let subOptions = [];
+    let platformSubMap = {}; // Key: lowercase platform name -> Set of lowercase subOptions
 
-    if (!rawMeta) return { mainPlatforms, subOptions };
+    if (!rawMeta) return { mainPlatforms, subOptions, platformSubMap };
 
     const str = typeof rawMeta === "object" ? JSON.stringify(rawMeta) : String(rawMeta).trim();
 
-    // 1. Handle JSON Object or JSON Array / Side-by-side JSON objects
     if (str.startsWith("{") || str.startsWith("[")) {
       try {
-        // Automatically wrap un-bracketed side-by-side JSON objects into a valid JSON array
         const jsonString = str.startsWith("{") && !str.endsWith("]") ? `[${str}]` : str;
         const parsed = JSON.parse(jsonString);
         const items = Array.isArray(parsed) ? parsed : [parsed];
@@ -38,9 +66,19 @@ const Card = ({ template }) => {
         items.forEach((item) => {
           if (typeof item === "object" && item !== null) {
             const name = item.name || item.id;
-            if (name) mainPlatforms.push(name);
-            if (Array.isArray(item.subOptions)) {
-              subOptions.push(...item.subOptions);
+            if (name) {
+              mainPlatforms.push(name);
+              const pLower = name.toLowerCase();
+              if (!platformSubMap[pLower]) platformSubMap[pLower] = new Set();
+
+              if (Array.isArray(item.subOptions)) {
+                item.subOptions.forEach((sub) => {
+                  if (sub) {
+                    subOptions.push(sub);
+                    platformSubMap[pLower].add(String(sub).trim().toLowerCase());
+                  }
+                });
+              }
             }
           } else if (typeof item === "string") {
             mainPlatforms.push(item);
@@ -50,18 +88,17 @@ const Card = ({ template }) => {
         return {
           mainPlatforms: Array.from(new Set(mainPlatforms)),
           subOptions: Array.from(new Set(subOptions)),
+          platformSubMap,
         };
       } catch (e) {
-        // RegEx fallback to pull clean platform names directly out of invalid JSON strings
         const matches = [...str.matchAll(/"(?:name|id)":\s*"([^"]+)"/g)];
         if (matches.length > 0) {
           const names = Array.from(new Set(matches.map((m) => m[1])));
-          return { mainPlatforms: names, subOptions: [] };
+          return { mainPlatforms: names, subOptions: [], platformSubMap: {} };
         }
       }
     }
 
-    // 2. Handle Plain Comma-Separated Strings (e.g. "YouTube, Meta")
     const knownMainNames = new Set(
       reduxPlatforms.map((p) =>
         (typeof p === "object" ? p.name || p.id : String(p)).toLowerCase()
@@ -81,10 +118,47 @@ const Card = ({ template }) => {
     return {
       mainPlatforms: Array.from(new Set(mainPlatforms)),
       subOptions: Array.from(new Set(subOptions)),
+      platformSubMap,
     };
   };
 
-  const { mainPlatforms, subOptions } = parseMetaTags(meta_tags);
+  const { mainPlatforms, subOptions, platformSubMap } = parseMetaTags(meta_tags);
+
+  // 4. Sub-options Filter Logic:
+  // Hide sub-option if it matches any active filter
+  const displaySubOptions = subOptions.filter((sub) => {
+    return !activeFilterSet.has(sub.toLowerCase());
+  });
+
+  // 5. Main Platforms Filter Logic:
+  // Hide parent platform IF:
+  //  a) The platform itself was directly selected
+  //  b) OR it has sub-options assigned to it, AND EVERY single sub-option has been filtered out
+  const displayPlatforms = mainPlatforms.filter((platform) => {
+    const pLower = platform.toLowerCase();
+
+    // Direct platform match check
+    if (activeFilterSet.has(pLower)) return false;
+
+    const childSubs = platformSubMap[pLower] || new Set();
+
+    if (childSubs.size > 0) {
+      // Find sub-options that are NOT currently selected in the filter
+      const unselectedChildSubs = Array.from(childSubs).filter(
+        (sub) => !activeFilterSet.has(sub)
+      );
+
+      // If 0 unselected sub-options remain (meaning all sub-options were selected), hide main platform
+      if (unselectedChildSubs.length === 0) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const hasAnyFilterApplied = activeFilterSet.size > 0;
+  const hasRemainingTags = displayPlatforms.length > 0 || displaySubOptions.length > 0;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -119,15 +193,25 @@ const Card = ({ template }) => {
       </div>
 
       <div className="card-content">
-        {(mainPlatforms.length > 0 || subOptions.length > 0) && (
+        {hasRemainingTags && (
           <div
             className="tags-wrapper"
             style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "12px" }}
           >
-            {/* Row 1: All Main Dropdown Platforms (e.g. Vast, DV360 side by side) */}
-            {mainPlatforms.length > 0 && (
+            {/* Dynamic Label Copy */}
+            <span
+              className="available-label"
+              style={{ fontSize: "12px", color: "#6b7280", fontWeight: 500 }}
+            >
+              {hasAnyFilterApplied
+                ? "Also available for:"
+                : "Available for Platforms:"}
+            </span>
+
+            {/* Main Platforms Row (Blue Tags) */}
+            {displayPlatforms.length > 0 && (
               <div className="tags main-tags" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {mainPlatforms.map((platform, idx) => (
+                {displayPlatforms.map((platform, idx) => (
                   <span
                     key={`${platform}-${idx}`}
                     className="tag main-tag"
@@ -144,10 +228,10 @@ const Card = ({ template }) => {
               </div>
             )}
 
-            {/* Row 2: Sub-options Tags */}
-            {subOptions.length > 0 && (
+            {/* Remaining Sub-options Row (Grey Tags) */}
+            {displaySubOptions.length > 0 && (
               <div className="tags sub-tags" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {subOptions.map((subTag, idx) => (
+                {displaySubOptions.map((subTag, idx) => (
                   <span key={`${subTag}-${idx}`} className="tag sub-tag">
                     {subTag}
                   </span>
