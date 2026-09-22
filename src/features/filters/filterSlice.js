@@ -37,6 +37,50 @@ const initialState = {
   error: null,
 };
 
+// Safe Platform Normalizer
+const normalizePlatforms = (rawPlatforms) => {
+  const platformMap = new Map();
+
+  (rawPlatforms || []).forEach((item) => {
+    let parsedItem = item;
+
+    // Handle raw stringified JSON objects or unparsed key-value strings
+    if (typeof item === "string") {
+      const trimmed = item.trim();
+      if (trimmed.startsWith("{") || trimmed.includes('"name":')) {
+        try {
+          // Parse single JSON object or format string chunk into valid JSON
+          parsedItem = JSON.parse(
+            trimmed.startsWith("{") ? trimmed : `{${trimmed}}`
+          );
+        } catch (e) {
+          // RegEx Fallback for string fragments like '"name": "DV360"'
+          const match = trimmed.match(/"(?:name|id)":\s*"([^"]+)"/);
+          if (match) {
+            parsedItem = { id: match[1], name: match[1], subOptions: [] };
+          }
+        }
+      } else if (trimmed) {
+        parsedItem = { id: trimmed, name: trimmed, subOptions: [] };
+      }
+    }
+
+    // Deduplicate and group platforms by name
+    if (parsedItem && typeof parsedItem === "object") {
+      const platformName = parsedItem.name || parsedItem.id || parsedItem.label;
+      if (platformName && !platformMap.has(platformName)) {
+        platformMap.set(platformName, {
+          id: String(parsedItem.id || platformName),
+          name: String(platformName),
+          subOptions: Array.isArray(parsedItem.subOptions) ? parsedItem.subOptions : [],
+        });
+      }
+    }
+  });
+
+  return Array.from(platformMap.values());
+};
+
 const filterSlice = createSlice({
   name: "filters",
   initialState,
@@ -111,8 +155,9 @@ const filterSlice = createSlice({
           typeof item === "object" ? item.name || item.id || item.label : item
         );
 
-        // ✅ PRESERVE platform objects directly so subOptions are available in MultiSelect
-        state.filters.platforms = data.platforms || data.platform || [];
+        // Normalize platforms into structured JS objects for MultiSelect
+        const rawPlatforms = data.platforms || data.platform || [];
+        state.filters.platforms = normalizePlatforms(rawPlatforms);
       })
       .addCase(fetchFilters.rejected, (state, action) => {
         state.loading = false;

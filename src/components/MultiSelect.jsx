@@ -66,21 +66,37 @@ const MultiSelect = ({
     }, 100);
   };
 
-  // Safe Key & Label Extraction
-  const getRawKey = (item) => {
-    if (item === null || item === undefined) return "";
-    if (typeof item === "object") {
-      return String(item.id ?? item.name ?? item.label ?? "");
+  // Safe Helper to Parse JSON strings or retrieve raw objects
+  const parseOption = (item) => {
+    if (item === null || item === undefined) return null;
+
+    if (typeof item === "string" && item.trim().startsWith("{")) {
+      try {
+        return JSON.parse(item);
+      } catch (e) {
+        // RegEx fallback if string has unescaped quotes
+        const match = item.match(/"(?:name|id)":\s*"([^"]+)"/);
+        if (match) return { id: match[1], name: match[1], subOptions: [] };
+      }
     }
-    return String(item);
+
+    if (typeof item === "object") return item;
+
+    return { id: String(item), name: String(item), subOptions: [] };
   };
 
+  // Safe Key Extraction
+  const getRawKey = (item) => {
+    const parsed = parseOption(item);
+    if (!parsed) return "";
+    return String(parsed.id ?? parsed.name ?? parsed.label ?? "");
+  };
+
+  // Safe Label Extraction
   const getOptionLabel = (opt) => {
-    if (opt === null || opt === undefined) return "";
-    if (typeof opt === "object") {
-      return String(opt.name ?? opt.label ?? opt.id ?? "");
-    }
-    return String(opt);
+    const parsed = parseOption(opt);
+    if (!parsed) return "";
+    return String(parsed.name ?? parsed.label ?? parsed.id ?? "");
   };
 
   const isSameOption = (a, b) => getRawKey(a) === getRawKey(b);
@@ -115,21 +131,22 @@ const MultiSelect = ({
     if (!opt) return false;
     const term = (searchTerm || "").toLowerCase();
 
-    const labelMatches = getOptionLabel(opt).toLowerCase().includes(term);
+    const parsedOpt = parseOption(opt);
+    const labelMatches = getOptionLabel(parsedOpt).toLowerCase().includes(term);
 
     const hasSubMatches =
-      typeof opt === "object" &&
-      Array.isArray(opt?.subOptions) &&
-      opt.subOptions.some((sub) =>
+      parsedOpt &&
+      Array.isArray(parsedOpt?.subOptions) &&
+      parsedOpt.subOptions.some((sub) =>
         getOptionLabel(sub).toLowerCase().includes(term)
       );
 
     return labelMatches || hasSubMatches;
   });
 
-  const activeOptionObj = (options || []).find(
-    (opt) => getRawKey(opt) === activeSubMenu
-  );
+  const activeOptionObj = (options || [])
+    .map((opt) => parseOption(opt))
+    .find((opt) => getRawKey(opt) === activeSubMenu);
 
   return (
     <div
@@ -242,13 +259,13 @@ const MultiSelect = ({
               >
                 {filteredOptions.length > 0 ? (
                   filteredOptions.map((opt) => {
+                    const parsedOpt = parseOption(opt);
                     const hasSubs =
-                      opt &&
-                      typeof opt === "object" &&
-                      Array.isArray(opt.subOptions) &&
-                      opt.subOptions.length > 0;
+                      parsedOpt &&
+                      Array.isArray(parsedOpt.subOptions) &&
+                      parsedOpt.subOptions.length > 0;
 
-                    const optKey = getRawKey(opt);
+                    const optKey = getRawKey(parsedOpt);
                     const isSubOpen = activeSubMenu === optKey;
 
                     return (
@@ -268,7 +285,7 @@ const MultiSelect = ({
                               setActiveSubMenu(optKey);
                             }
                           } else {
-                            handleSelect(e, opt);
+                            handleSelect(e, parsedOpt);
                           }
                         }}
                         style={{
@@ -290,7 +307,7 @@ const MultiSelect = ({
                             textOverflow: "ellipsis",
                           }}
                         >
-                          {getOptionLabel(opt)}
+                          {getOptionLabel(parsedOpt)}
                         </span>
 
                         {hasSubs && (
@@ -323,7 +340,6 @@ const MultiSelect = ({
 
               {/* Flyout Sub-menu Panel */}
               {activeOptionObj &&
-                typeof activeOptionObj === "object" &&
                 Array.isArray(activeOptionObj.subOptions) &&
                 activeOptionObj.subOptions.length > 0 && (
                   <div

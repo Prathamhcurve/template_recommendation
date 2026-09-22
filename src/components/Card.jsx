@@ -27,10 +27,12 @@ const Card = ({ template }) => {
 
     const str = typeof rawMeta === "object" ? JSON.stringify(rawMeta) : String(rawMeta).trim();
 
-    // 1. Handle JSON Object or JSON Array
+    // 1. Handle JSON Object or JSON Array / Side-by-side JSON objects
     if (str.startsWith("{") || str.startsWith("[")) {
       try {
-        const parsed = JSON.parse(str);
+        // Automatically wrap un-bracketed side-by-side JSON objects into a valid JSON array
+        const jsonString = str.startsWith("{") && !str.endsWith("]") ? `[${str}]` : str;
+        const parsed = JSON.parse(jsonString);
         const items = Array.isArray(parsed) ? parsed : [parsed];
 
         items.forEach((item) => {
@@ -50,12 +52,16 @@ const Card = ({ template }) => {
           subOptions: Array.from(new Set(subOptions)),
         };
       } catch (e) {
-        // Fallthrough if JSON parse fails
+        // RegEx fallback to pull clean platform names directly out of invalid JSON strings
+        const matches = [...str.matchAll(/"(?:name|id)":\s*"([^"]+)"/g)];
+        if (matches.length > 0) {
+          const names = Array.from(new Set(matches.map((m) => m[1])));
+          return { mainPlatforms: names, subOptions: [] };
+        }
       }
     }
 
     // 2. Handle Plain Comma-Separated Strings (e.g. "YouTube, Meta")
-    // Extract valid main platform names from Redux for comparison
     const knownMainNames = new Set(
       reduxPlatforms.map((p) =>
         (typeof p === "object" ? p.name || p.id : String(p)).toLowerCase()
@@ -65,7 +71,6 @@ const Card = ({ template }) => {
     const tags = str.split(",").map((t) => t.trim()).filter(Boolean);
 
     tags.forEach((tag) => {
-      // If tag matches a known platform name or no known platforms are loaded yet, put in main row
       if (knownMainNames.size === 0 || knownMainNames.has(tag.toLowerCase())) {
         mainPlatforms.push(tag);
       } else {
@@ -119,7 +124,7 @@ const Card = ({ template }) => {
             className="tags-wrapper"
             style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "12px" }}
           >
-            {/* Row 1: All Main Dropdown Platforms (e.g. YouTube, Meta side by side) */}
+            {/* Row 1: All Main Dropdown Platforms (e.g. Vast, DV360 side by side) */}
             {mainPlatforms.length > 0 && (
               <div className="tags main-tags" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {mainPlatforms.map((platform, idx) => (
@@ -139,7 +144,7 @@ const Card = ({ template }) => {
               </div>
             )}
 
-            {/* Row 2: Sub-options Tags (e.g. In-Stream Ads, Reels) */}
+            {/* Row 2: Sub-options Tags */}
             {subOptions.length > 0 && (
               <div className="tags sub-tags" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {subOptions.map((subTag, idx) => (
