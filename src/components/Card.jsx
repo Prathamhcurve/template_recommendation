@@ -204,7 +204,7 @@ const Card = ({ template }) => {
               style={{ fontSize: "12px", color: "#6b7280", fontWeight: 500 }}
             >
               {hasAnyFilterApplied
-                ? "Also available for:"
+                ? "Available for:"
                 : "Available for Platforms:"}
             </span>
 
