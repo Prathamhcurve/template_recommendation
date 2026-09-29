@@ -39,6 +39,57 @@ const Preview = () => {
     }
   }, [template, dis]);
 
+  // Parser to build dynamic comma-separated platform strings e.g., "Google Ads (Demand Gen), Meta, DV360"
+  const getDynamicPlatforms = (rawMeta, fallbackPlatforms) => {
+    if (!rawMeta) return fallbackPlatforms || "N/A";
+
+    const str = typeof rawMeta === "object" ? JSON.stringify(rawMeta) : String(rawMeta).trim();
+
+    if (str.startsWith("{") || str.startsWith("[")) {
+      try {
+        const jsonString = str.startsWith("{") && !str.endsWith("]") ? `[${str}]` : str;
+        const parsed = JSON.parse(jsonString);
+        const items = Array.isArray(parsed) ? parsed : [parsed];
+
+        const platformList = [];
+
+        items.forEach((item) => {
+          if (typeof item === "object" && item !== null) {
+            const name = item.name || item.id;
+            if (name) {
+              const subOpts = Array.isArray(item.subOptions) && item.subOptions.length > 0
+                ? item.subOptions.filter(Boolean).join(", ")
+                : null;
+
+              if (subOpts) {
+                platformList.push(`${name} (${subOpts})`);
+              } else {
+                platformList.push(name);
+              }
+            }
+          } else if (typeof item === "string") {
+            platformList.push(item);
+          }
+        });
+
+        if (platformList.length > 0) {
+          return Array.from(new Set(platformList)).join(", ");
+        }
+      } catch (e) {
+        // Fallback if JSON parse fails
+      }
+    }
+
+    // String fallback if meta_tags is a standard string
+    const tags = str.split(",").map((t) => t.trim()).filter(Boolean);
+    return tags.length > 0 ? tags.join(", ") : fallbackPlatforms || "N/A";
+  };
+
+  const dynamicPlatformsDisplay = getDynamicPlatforms(
+    template?.meta_tags,
+    template?.platforms
+  );
+
   if (loading) {
     return <Loader size="lg" color="#f97316" />;
   }
@@ -60,7 +111,7 @@ const Preview = () => {
       {
         "@type": "PropertyValue",
         name: "Platforms",
-        value: template?.platforms,
+        value: dynamicPlatformsDisplay,
       },
       {
         "@type": "PropertyValue",
@@ -90,7 +141,7 @@ const Preview = () => {
         <button className="back-btn" onClick={() => router.back()}>
           <FontAwesomeIcon icon={faArrowLeft} />
         </button>
-        <h1 className="temp_title">{template?.title.split(" - ")[0]}</h1>
+        <h1 className="temp_title">{template?.title?.split(" - ")[0]}</h1>
 
         <div className="flex w-full">
           <div className="temp_img_container">
@@ -160,7 +211,7 @@ const Preview = () => {
                 </div>
                 <div className="info_content">
                   <p className="info_title">Platforms:</p>
-                  <h4 className="info_desc">{template?.platforms}</h4>
+                  <h4 className="info_desc">{dynamicPlatformsDisplay}</h4>
                 </div>
               </div>
             </div>
@@ -177,7 +228,7 @@ const Preview = () => {
                 <p className="info_title">Creative Requirements:</p>
               </div>
               <ul className="requirement_list">
-                {template?.requirements?.creative_requirements.map((req) => (
+                {template?.requirements?.creative_requirements?.map((req) => (
                   <li key={req} className="requirement_list_item">
                     <FontAwesomeIcon icon={faCircleDot} className="checkIcon" />
                     {req.includes("docs.google.com") ? (
@@ -202,7 +253,7 @@ const Preview = () => {
                 <p className="info_title">Ad Ops Requirements:</p>
               </div>
               <ul className="requirement_list">
-                {template?.requirements?.ad_ops_requirements.map((req) => (
+                {template?.requirements?.ad_ops_requirements?.map((req) => (
                   <li key={req} className="requirement_list_item">
                     <FontAwesomeIcon icon={faCircleDot} className="checkIcon" />
                     {req.includes("docs.google.com") ? (

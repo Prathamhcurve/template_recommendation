@@ -38,10 +38,8 @@ const Showcase = ({ isRecommended = false }) => {
 
   // Hydrate Redux state from URL base64 params on refresh/mount
   useEffect(() => {
-    // 1. Updated from params?.query to params?.filters
     if (params?.filters) {
       try {
-        // 2. decodeURIComponent handles URL-encoded %3D%3D padding
         const cleanBase64 = decodeURIComponent(params.filters);
         const decodedString = atob(cleanBase64);
         const parsedQuery = JSON.parse(decodedString);
@@ -82,12 +80,24 @@ const Showcase = ({ isRecommended = false }) => {
     return null;
   }
 
+  // Frontend exclusion for templates marked as "to be deleted" in description
+  const validData = data
+    ? data.filter(
+        (template) =>
+          !template?.desc?.toLowerCase().includes("to be deleted")
+      )
+    : [];
+
   const pageSize = 15;
-  const totalItems = data ? data.length : 0;
+  const totalItems = validData.length;
   const startIndex = (page - 1) * pageSize;
   const endIndex = startIndex + pageSize;
 
-  const currentData = data ? data.slice(startIndex, endIndex) : [];
+  const currentData = validData.slice(startIndex, endIndex);
+
+  // Dynamic count calculation based on valid templates
+  const displayFilteredCount = enabled ? totalItems : filtered;
+  const displayTotalCount = enabled ? total : totalItems;
 
   return (
     <>
@@ -98,13 +108,13 @@ const Showcase = ({ isRecommended = false }) => {
           </h2>
         )}
 
-        {data && enabled ? (
+        {validData && enabled ? (
           <h2 className="template-header">
-            Showing filtered results: {filtered} / {total}
+            Showing filtered results: {displayFilteredCount} / {displayTotalCount}
           </h2>
         ) : (
           <h2 className="template-header">
-            {pathname === "/" ? "Unique templates" : "Showing results"}: {total}
+            {pathname === "/" ? "Unique templates" : "Showing results"}: {displayTotalCount}
           </h2>
         )}
 
