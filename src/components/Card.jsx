@@ -13,11 +13,10 @@ const Card = ({ template }) => {
     (state) => state.filters?.filters?.platforms || []
   );
 
-  // 2. Fetch all applied filter states from Redux
+  // 2. Fetch applied filter states
   const filtersApplied = useSelector((state) => state.filters?.applied) || {};
   const filtersSelected = useSelector((state) => state.filters?.selected) || {};
 
-  // Extract all active filter values across potential state slices (platforms, subOptions, campaignTypes, etc.)
   const flattenAllFilters = (...sources) => {
     const set = new Set();
     const extract = (item) => {
@@ -47,13 +46,12 @@ const Card = ({ template }) => {
       ? JSON.parse(videos_images.replace(/'/g, '"'))[1]
       : thumbnail;
 
-  // 3. Parser: Parse meta_tags and build precise platform-to-subOption mappings
+  // 3. Parser: Parse meta_tags to extract main platforms and sub-options
   const parseMetaTags = (rawMeta) => {
     let mainPlatforms = [];
     let subOptions = [];
-    let platformSubMap = {}; // Key: lowercase platform name -> Set of lowercase subOptions
 
-    if (!rawMeta) return { mainPlatforms, subOptions, platformSubMap };
+    if (!rawMeta) return { mainPlatforms, subOptions };
 
     const str = typeof rawMeta === "object" ? JSON.stringify(rawMeta) : String(rawMeta).trim();
 
@@ -66,19 +64,9 @@ const Card = ({ template }) => {
         items.forEach((item) => {
           if (typeof item === "object" && item !== null) {
             const name = item.name || item.id;
-            if (name) {
-              mainPlatforms.push(name);
-              const pLower = name.toLowerCase();
-              if (!platformSubMap[pLower]) platformSubMap[pLower] = new Set();
-
-              if (Array.isArray(item.subOptions)) {
-                item.subOptions.forEach((sub) => {
-                  if (sub) {
-                    subOptions.push(sub);
-                    platformSubMap[pLower].add(String(sub).trim().toLowerCase());
-                  }
-                });
-              }
+            if (name) mainPlatforms.push(name);
+            if (Array.isArray(item.subOptions)) {
+              subOptions.push(...item.subOptions);
             }
           } else if (typeof item === "string") {
             mainPlatforms.push(item);
@@ -88,13 +76,12 @@ const Card = ({ template }) => {
         return {
           mainPlatforms: Array.from(new Set(mainPlatforms)),
           subOptions: Array.from(new Set(subOptions)),
-          platformSubMap,
         };
       } catch (e) {
         const matches = [...str.matchAll(/"(?:name|id)":\s*"([^"]+)"/g)];
         if (matches.length > 0) {
           const names = Array.from(new Set(matches.map((m) => m[1])));
-          return { mainPlatforms: names, subOptions: [], platformSubMap: {} };
+          return { mainPlatforms: names, subOptions: [] };
         }
       }
     }
@@ -118,47 +105,41 @@ const Card = ({ template }) => {
     return {
       mainPlatforms: Array.from(new Set(mainPlatforms)),
       subOptions: Array.from(new Set(subOptions)),
-      platformSubMap,
     };
   };
 
-  const { mainPlatforms, subOptions, platformSubMap } = parseMetaTags(meta_tags);
+  const { mainPlatforms, subOptions } = parseMetaTags(meta_tags);
 
-  // 4. Sub-options Filter Logic:
-  // Hide sub-option if it matches any active filter
-  const displaySubOptions = subOptions.filter((sub) => {
-    return !activeFilterSet.has(sub.toLowerCase());
+  // 4. Sort Main Platforms: Filtered tags FIRST -> "Google Ads" SECOND -> Remaining
+  const sortedPlatforms = [...mainPlatforms].sort((a, b) => {
+    const aLower = a.toLowerCase();
+    const bLower = b.toLowerCase();
+
+    const aIsSelected = activeFilterSet.has(aLower);
+    const bIsSelected = activeFilterSet.has(bLower);
+
+    if (aIsSelected && !bIsSelected) return -1;
+    if (!aIsSelected && bIsSelected) return 1;
+
+    // Fallback: Google Ads priority
+    if (aLower === "google ads") return -1;
+    if (bLower === "google ads") return 1;
+
+    return 0;
   });
 
-  // 5. Main Platforms Filter Logic:
-  // Hide parent platform IF:
-  //  a) The platform itself was directly selected
-  //  b) OR it has sub-options assigned to it, AND EVERY single sub-option has been filtered out
-  const displayPlatforms = mainPlatforms.filter((platform) => {
-    const pLower = platform.toLowerCase();
+  // 5. Sort Sub-options: Filtered sub-options FIRST -> Remaining
+  const sortedSubOptions = [...subOptions].sort((a, b) => {
+    const aIsSelected = activeFilterSet.has(a.toLowerCase());
+    const bIsSelected = activeFilterSet.has(b.toLowerCase());
 
-    // Direct platform match check
-    if (activeFilterSet.has(pLower)) return false;
-
-    const childSubs = platformSubMap[pLower] || new Set();
-
-    if (childSubs.size > 0) {
-      // Find sub-options that are NOT currently selected in the filter
-      const unselectedChildSubs = Array.from(childSubs).filter(
-        (sub) => !activeFilterSet.has(sub)
-      );
-
-      // If 0 unselected sub-options remain (meaning all sub-options were selected), hide main platform
-      if (unselectedChildSubs.length === 0) {
-        return false;
-      }
-    }
-
-    return true;
+    if (aIsSelected && !bIsSelected) return -1;
+    if (!aIsSelected && bIsSelected) return 1;
+    return 0;
   });
 
   const hasAnyFilterApplied = activeFilterSet.size > 0;
-  const hasRemainingTags = displayPlatforms.length > 0 || displaySubOptions.length > 0;
+  const hasRemainingTags = sortedPlatforms.length > 0 || sortedSubOptions.length > 0;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -167,7 +148,7 @@ const Card = ({ template }) => {
     "description": desc,
     "image": imageLink,
     "identifier": id,
-    "keywords": mainPlatforms.join(", ") || meta_tags,
+    "keywords": sortedPlatforms.join(", ") || meta_tags,
   };
 
   return (
@@ -208,10 +189,10 @@ const Card = ({ template }) => {
                 : "Available for Platforms:"}
             </span>
 
-            {/* Main Platforms Row (Blue Tags) */}
-            {displayPlatforms.length > 0 && (
+            {/* Main Platforms Row (Blue Tags) - Selected Filtered First */}
+            {sortedPlatforms.length > 0 && (
               <div className="tags main-tags" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {displayPlatforms.map((platform, idx) => (
+                {sortedPlatforms.map((platform, idx) => (
                   <span
                     key={`${platform}-${idx}`}
                     className="tag main-tag"
@@ -228,10 +209,10 @@ const Card = ({ template }) => {
               </div>
             )}
 
-            {/* Remaining Sub-options Row (Grey Tags) */}
-            {displaySubOptions.length > 0 && (
+            {/* Sub-options Row (Grey Tags) - Selected Filtered First */}
+            {sortedSubOptions.length > 0 && (
               <div className="tags sub-tags" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {displaySubOptions.map((subTag, idx) => (
+                {sortedSubOptions.map((subTag, idx) => (
                   <span key={`${subTag}-${idx}`} className="tag sub-tag">
                     {subTag}
                   </span>
