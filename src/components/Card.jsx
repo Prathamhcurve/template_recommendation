@@ -1,19 +1,18 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useSelector } from "react-redux";
-import { faEye } from "@fortawesome/free-solid-svg-icons";
-import Button from "./Button";
 
 const Card = ({ template }) => {
-  const { id, title, desc, thumbnail, meta_tags, videos_images } = template;
+  const { id, title, desc, thumbnail, meta_tags, videos_images, client_name } = template;
 
-  // 1. Fetch available platforms
+  const [aspectRatioClass, setAspectRatioClass] = useState("aspect-square");
+
   const reduxPlatforms = useSelector(
     (state) => state.filters?.filters?.platforms || []
   );
 
-  // 2. Fetch applied filter states
   const filtersApplied = useSelector((state) => state.filters?.applied) || {};
   const filtersSelected = useSelector((state) => state.filters?.selected) || {};
 
@@ -39,14 +38,32 @@ const Card = ({ template }) => {
     return set;
   };
 
-  const activeFilterSet = flattenAllFilters(filtersApplied, filtersSelected);
+  const activeFilterSet = useMemo(
+    () => flattenAllFilters(filtersApplied, filtersSelected),
+    [filtersApplied, filtersSelected]
+  );
 
   const imageLink =
-    videos_images !== undefined
-      ? JSON.parse(videos_images.replace(/'/g, '"'))[1]
+    videos_images !== undefined && videos_images !== null && videos_images !== ""
+      ? (() => {
+          try {
+            const parsed = JSON.parse(videos_images.replace(/'/g, '"'));
+            return parsed[1] || thumbnail;
+          } catch {
+            return thumbnail;
+          }
+        })()
       : thumbnail;
 
-  // 3. Parser: Parse meta_tags to extract main platforms and sub-options
+  const handleImageLoad = (e) => {
+    const { naturalWidth, naturalHeight } = e.target;
+    if (naturalHeight > naturalWidth * 1.3) {
+      setAspectRatioClass("aspect-portrait");
+    } else {
+      setAspectRatioClass("aspect-square");
+    }
+  };
+
   const parseMetaTags = (rawMeta) => {
     let mainPlatforms = [];
     let subOptions = [];
@@ -110,7 +127,6 @@ const Card = ({ template }) => {
 
   const { mainPlatforms, subOptions } = parseMetaTags(meta_tags);
 
-  // 4. Sort Main Platforms: Filtered tags FIRST -> "Google Ads" SECOND -> Remaining
   const sortedPlatforms = [...mainPlatforms].sort((a, b) => {
     const aLower = a.toLowerCase();
     const bLower = b.toLowerCase();
@@ -121,14 +137,12 @@ const Card = ({ template }) => {
     if (aIsSelected && !bIsSelected) return -1;
     if (!aIsSelected && bIsSelected) return 1;
 
-    // Fallback: Google Ads priority
     if (aLower === "google ads") return -1;
     if (bLower === "google ads") return 1;
 
     return 0;
   });
 
-  // 5. Sort Sub-options: Filtered sub-options FIRST -> Remaining
   const sortedSubOptions = [...subOptions].sort((a, b) => {
     const aIsSelected = activeFilterSet.has(a.toLowerCase());
     const bIsSelected = activeFilterSet.has(b.toLowerCase());
@@ -139,98 +153,72 @@ const Card = ({ template }) => {
   });
 
   const hasAnyFilterApplied = activeFilterSet.size > 0;
-  const hasRemainingTags = sortedPlatforms.length > 0 || sortedSubOptions.length > 0;
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "CreativeWork",
-    "name": title,
-    "description": desc,
-    "image": imageLink,
-    "identifier": id,
-    "keywords": sortedPlatforms.join(", ") || meta_tags,
-  };
 
   return (
-    <div className="template-card">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <div className="card-image-container">
+    <div className={`ref-template-card ${aspectRatioClass}`}>
+      {/* Thumbnail Stage with Blur & Hover Overlay */}
+      <div className="ref-card-media-stage">
         <img
           src={imageLink || null}
           alt={title}
-          className="card-image"
+          className="ref-card-img"
+          onLoad={handleImageLoad}
           loading="lazy"
         />
-      </div>
 
-      <div className="card-header">
-        <div className="card-title-row">
-          <h3 className="card-title">{title}</h3>
+        {/* Hover View Details Trigger */}
+        <div className="ref-card-hover-overlay">
+          <Link href={`/template/${id}`} className="ref-hover-view-btn">
+            <svg className="btn-eye-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+            </svg>
+            <span>View Details</span>
+          </Link>
         </div>
-        <p className="card-description">{desc}</p>
       </div>
 
-      <div className="card-content">
-        {hasRemainingTags && (
-          <div
-            className="tags-wrapper"
-            style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "12px" }}
-          >
-            {/* Dynamic Label Copy */}
-            <span
-              className="available-label"
-              style={{ fontSize: "12px", color: "#6b7280", fontWeight: 500 }}
-            >
-              {hasAnyFilterApplied
-                ? "Available for:"
-                : "Available for Platforms:"}
-            </span>
+      {/* Content Stage */}
+      <div className="ref-card-body">
+        <div className="ref-title-group">
+          <h3 className="ref-card-title">{title}</h3>
+          {client_name && <span className="ref-client-subtitle">{client_name}</span>}
+          {desc && <p className="ref-card-desc">{desc}</p>}
+        </div>
 
-            {/* Main Platforms Row (Blue Tags) - Selected Filtered First */}
+        {/* Separate Rows for Main Platforms and Sub-Options */}
+        {(sortedPlatforms.length > 0 || sortedSubOptions.length > 0) && (
+          <div className="ref-tags-container">
+            {/* Row 1: Main Platforms */}
             {sortedPlatforms.length > 0 && (
-              <div className="tags main-tags" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {sortedPlatforms.map((platform, idx) => (
-                  <span
-                    key={`${platform}-${idx}`}
-                    className="tag main-tag"
-                    style={{
-                      backgroundColor: "#eff6ff",
-                      color: "#1d4ed8",
-                      borderColor: "#bfdbfe",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {platform}
-                  </span>
-                ))}
+              <div className="ref-tags-row-block">
+                <span className="ref-tags-label">
+                  {hasAnyFilterApplied ? "Available for:" : "Available for Platforms:"}
+                </span>
+                <div className="ref-tags-pills-row">
+                  {sortedPlatforms.map((platform, idx) => (
+                    <span key={`main-${platform}-${idx}`} className="ref-pill main-pill">
+                      {platform}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Sub-options Row (Grey Tags) - Selected Filtered First */}
+            {/* Row 2: Sub Options / Features (Separate Dedicated Row) */}
             {sortedSubOptions.length > 0 && (
-              <div className="tags sub-tags" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {sortedSubOptions.map((subTag, idx) => (
-                  <span key={`${subTag}-${idx}`} className="tag sub-tag">
-                    {subTag}
-                  </span>
-                ))}
+              <div className="ref-tags-row-block">
+                <span className="ref-tags-label sub-label">Features / Formats:</span>
+                <div className="ref-tags-pills-row">
+                  {sortedSubOptions.map((subTag, idx) => (
+                    <span key={`sub-${subTag}-${idx}`} className="ref-pill sub-pill">
+                      {subTag}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         )}
-
-        <Link href={`/template/${id}`}>
-          <Button
-            text="View Details"
-            icon={faEye}
-            type={"button"}
-            width={"full"}
-            btnType={"primary"}
-          />
-        </Link>
       </div>
     </div>
   );
